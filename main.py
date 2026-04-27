@@ -31,11 +31,11 @@ def loadDataset():
 
     df = pd.read_csv(filePath)
 
-    print("\nFirst 5 rows of dataset:")
+    '''print("\nFirst 5 rows of dataset:")
     print(df.head())
 
     print("\nColumn names:")
-    print(df.columns)
+    print(df.columns)'''
 
     return df
 
@@ -124,7 +124,7 @@ def evaluateModel(modelName, yTrue, yPred):
     print("\nClassification Report:")
     print(classification_report(yTrue, yPred))
 
-def knn(xTrainTfidf, yTrain, xTestTfidf, yTest, k=5):
+def knn(xTrainTfidf, yTrain, xTestTfidf, yTest, k):
     model = KNeighborsClassifier(n_neighbors=k)
     model.fit(xTrainTfidf, yTrain)
     yPred = model.predict(xTestTfidf)
@@ -145,15 +145,36 @@ def logisticRegression(xTrainTfidf, yTrain, xTestTfidf, yTest):
     evaluateModel("Logistic Regression", yTest, yPred)
     return model, yPred
 
+def optimizeLogisticRegression(xTrainTfidf, yTrain, xValTfidf, yVal):
+    bestC = None
+    bestAccuracy = 0
+    for c in [.01, .1, 1, 10, 100]:
+        model = LogisticRegression(max_iter=1000, C = c)
+        model.fit(xTrainTfidf, yTrain)
+
+        yPred = model.predict(xValTfidf)
+        accuracy = accuracy_score(yVal, yPred)
+
+        print(f"\nC : {c}, Accuracy: {accuracy:.3f}")
+        evaluateModel("Logistic Regression", yVal, yPred)
+        if accuracy > bestAccuracy:
+            bestAccuracy = accuracy
+            bestC = c
+
+    print("\nBest C:", bestC)
+    return bestC
+
 def main():
     df = loadDataset()
     x, y = preprocessData(df)
+    k = 5
     xTrain, xVal, xTest, yTrain, yVal, yTest = splitData(x, y)
     xTrainTfidf, xValTfidf, xTestTfidf, tfidf = extractFeatures(xTrain, xVal, xTest)
 
-    knn(xTrainTfidf, yTrain, xTestTfidf, yTest, k=5)
+    '''knn(xTrainTfidf, yTrain, xTestTfidf, yTest, k)
     naiveBayes(xTrainTfidf, yTrain, xTestTfidf, yTest)
-    logisticRegression(xTrainTfidf, yTrain, xTestTfidf, yTest)
+    logisticRegression(xTrainTfidf, yTrain, xTestTfidf, yTest)'''
+    optimizeLogisticRegression(xTrainTfidf, yTrain, xValTfidf, yVal)
 
 if __name__ == "__main__":
     main()
