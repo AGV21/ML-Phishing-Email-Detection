@@ -10,6 +10,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
+from sklearn.model_selection import GridSearchCV
 from nltk.corpus import stopwords
 from nltk.stem import SnowballStemmer
 
@@ -146,23 +147,34 @@ def logisticRegression(xTrainTfidf, yTrain, xTestTfidf, yTest):
     return model, yPred
 
 def optimizeLogisticRegression(xTrainTfidf, yTrain, xValTfidf, yVal):
-    bestC = None
-    bestAccuracy = 0
-    for c in [.01, .1, 1, 10, 100]:
-        model = LogisticRegression(max_iter=1000, C = c)
-        model.fit(xTrainTfidf, yTrain)
+    paramGrid = {
+        "C": [0.01, 0.1, 1, 10, 100],
+        "solver": ["lbfgs"],
+        "class_weight": [None, "balanced"]
+    }
 
-        yPred = model.predict(xValTfidf)
-        accuracy = accuracy_score(yVal, yPred)
+    grid = GridSearchCV(
+        LogisticRegression(max_iter=2000),
+        paramGrid,
+        cv=5,
+        scoring="accuracy",
+        n_jobs=-1
+    )
 
-        print(f"\nC : {c}, Accuracy: {accuracy:.3f}")
-        evaluateModel("Logistic Regression", yVal, yPred)
-        if accuracy > bestAccuracy:
-            bestAccuracy = accuracy
-            bestC = c
+    grid.fit(xTrainTfidf, yTrain)
+    '''
+    print("\nBest Parameters:")
+    print(grid.best_params_)
 
-    print("\nBest C:", bestC)
-    return bestC
+    print("\nBest Cross Validation Accuracy:")
+    print(round(grid.best_score_, 3))'''
+
+    bestModel = grid.best_estimator_
+
+    yPred = bestModel.predict(xValTfidf)
+    #evaluateModel("Optimized Logistic Regression Validation", yVal, yPred)
+
+    return bestModel
 
 def main():
     df = loadDataset()
@@ -171,10 +183,18 @@ def main():
     xTrain, xVal, xTest, yTrain, yVal, yTest = splitData(x, y)
     xTrainTfidf, xValTfidf, xTestTfidf, tfidf = extractFeatures(xTrain, xVal, xTest)
 
-    '''knn(xTrainTfidf, yTrain, xTestTfidf, yTest, k)
+    knn(xTrainTfidf, yTrain, xTestTfidf, yTest, k)
     naiveBayes(xTrainTfidf, yTrain, xTestTfidf, yTest)
-    logisticRegression(xTrainTfidf, yTrain, xTestTfidf, yTest)'''
-    optimizeLogisticRegression(xTrainTfidf, yTrain, xValTfidf, yVal)
+    logisticRegression(xTrainTfidf, yTrain, xTestTfidf, yTest)
+    bestLogModel = optimizeLogisticRegression(
+        xTrainTfidf,
+        yTrain,
+        xValTfidf,
+        yVal
+    )
+
+    yTestPred = bestLogModel.predict(xTestTfidf)
+    evaluateModel("Final Logistic Regression Test", yTest, yTestPred)
 
 if __name__ == "__main__":
     main()
