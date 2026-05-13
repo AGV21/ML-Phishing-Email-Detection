@@ -11,6 +11,8 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
 from sklearn.model_selection import GridSearchCV
+import matplotlib.pyplot as plt
+import seaborn as sns
 from nltk.corpus import stopwords
 from nltk.stem import SnowballStemmer
 
@@ -98,10 +100,10 @@ def splitData(x, y):
         stratify=yTemp
     )
 
-    print("\nData split sizes:")
+    '''print("\nData split sizes:")
     print("Training set:", len(xTrain))
     print("Validation set:", len(xVal))
-    print("Testing set:", len(xTest))
+    print("Testing set:", len(xTest))'''
 
     return xTrain, xVal, xTest, yTrain, yVal, yTest
 
@@ -124,6 +126,26 @@ def evaluateModel(modelName, yTrue, yPred):
     print(round(accuracy_score(yTrue, yPred), 3))
     print("\nClassification Report:")
     print(classification_report(yTrue, yPred))
+
+def plotConfusionMatrix(yTrue, yPred, modelName):
+    cm = confusion_matrix(yTrue, yPred)
+
+    plt.figure(figsize=(6,5))
+
+    sns.heatmap(
+        cm,
+        annot=True,
+        fmt='d',
+        cmap='Blues',
+        xticklabels=['Legitimate', 'Phishing', 'Garbage'],
+        yticklabels=['Legitimate', 'Phishing', 'Garbage']
+    )
+
+    plt.title(f'{modelName} Confusion Matrix')
+    plt.xlabel('Predicted Label')
+    plt.ylabel('True Label')
+
+    plt.show()
 
 def knn(xTrainTfidf, yTrain, xTestTfidf, yTest, k):
     model = KNeighborsClassifier(n_neighbors=k)
@@ -162,8 +184,8 @@ def optimizeLogisticRegression(xTrainTfidf, yTrain, xValTfidf, yVal):
     )
 
     grid.fit(xTrainTfidf, yTrain)
-    '''
-    print("\nBest Parameters:")
+
+    '''print("\nBest Parameters:")
     print(grid.best_params_)
 
     print("\nBest Cross Validation Accuracy:")
@@ -171,8 +193,8 @@ def optimizeLogisticRegression(xTrainTfidf, yTrain, xValTfidf, yVal):
 
     bestModel = grid.best_estimator_
 
-    yPred = bestModel.predict(xValTfidf)
-    #evaluateModel("Optimized Logistic Regression Validation", yVal, yPred)
+    '''yPred = bestModel.predict(xValTfidf)
+    evaluateModel("Optimized Logistic Regression Validation", yVal, yPred)'''
 
     return bestModel
 
@@ -183,18 +205,18 @@ def main():
     xTrain, xVal, xTest, yTrain, yVal, yTest = splitData(x, y)
     xTrainTfidf, xValTfidf, xTestTfidf, tfidf = extractFeatures(xTrain, xVal, xTest)
 
-    knn(xTrainTfidf, yTrain, xTestTfidf, yTest, k)
-    naiveBayes(xTrainTfidf, yTrain, xTestTfidf, yTest)
+    knnModel, knnPred = knn(xTrainTfidf, yTrain, xTestTfidf, yTest, k)
+    nbModel, nbPred = naiveBayes(xTrainTfidf, yTrain, xTestTfidf, yTest)
     logisticRegression(xTrainTfidf, yTrain, xTestTfidf, yTest)
-    bestLogModel = optimizeLogisticRegression(
-        xTrainTfidf,
-        yTrain,
-        xValTfidf,
-        yVal
-    )
+
+    bestLogModel = optimizeLogisticRegression(xTrainTfidf, yTrain, xValTfidf, yVal)
 
     yTestPred = bestLogModel.predict(xTestTfidf)
     evaluateModel("Final Logistic Regression Test", yTest, yTestPred)
+
+    plotConfusionMatrix(yTest, knnPred, "KNN")
+    plotConfusionMatrix(yTest, nbPred, "Naive Bayes")
+    plotConfusionMatrix(yTest, yTestPred, "Logistic Regression")
 
 if __name__ == "__main__":
     main()
